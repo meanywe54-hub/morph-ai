@@ -1,0 +1,37 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "morph-agent-evolution"
+version = "0.1.0"
+description = "Experimental infrastructure for evaluating agent capability changes"
+readme = "README.md"
+requires-python = ">=3.11"
+license = "Apache-2.0"
+license-files = ["LICENSE", "NOTICE"]
+authors = [{name = "meanywe54-hub"}]
+dependencies = []
+
+[project.urls]
+Repository = "https://github.com/meanywe54-hub/morph-ai"
+Documentation = "https://github.com/meanywe54-hub/morph-ai#readme"
+Issues = "https://github.com/meanywe54-hub/morph-ai/issues"
+
+[project.optional-dependencies]
+dev = ["pytest>=8", "ruff>=0.8", "build>=1"]
+openai = ["openai>=2.0,<3"]
+
+[project.scripts]
+morph = "morph.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"

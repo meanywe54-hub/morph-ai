@@ -1,0 +1,20 @@
+name: Bug report
+description: Report a reproducible failure without private data
+body:
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Minimal reproduction
+      description: Include commands and synthetic inputs. Remove keys, personal paths and private task data.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected and observed behavior
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Python and MORPH version
