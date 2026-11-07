@@ -73,7 +73,9 @@ def _statements(body: list[ast.stmt]) -> None:
             raise SandboxFailure(f"unsupported statement: {type(node).__name__}")
 
 
-def _parse(code: str) -> ast.FunctionDef:
+def _parse(
+    code: str, *, name: str = "solve", scalar_parameters: tuple[str, ...] | None = None
+) -> ast.FunctionDef:
     if type(code) is not str or len(code.encode("utf-8")) > 100_000:
         raise SandboxFailure("invalid code size")
     try:
@@ -89,10 +91,11 @@ def _parse(code: str) -> ast.FunctionDef:
             raise SandboxFailure("algorithm syntax budget exceeded")
         pending.extend((child, depth + 1) for child in ast.iter_child_nodes(node))
     body = tree.body
-    if len(body) != 1 or not isinstance(body[0], ast.FunctionDef) or body[0].name != "solve":
-        raise SandboxFailure("exactly one solve function is required")
+    if len(body) != 1 or not isinstance(body[0], ast.FunctionDef) or body[0].name != name:
+        raise SandboxFailure(f"exactly one {name} function is required")
     function = body[0]
     args = function.args
+    parameters = ("values",) if scalar_parameters is None else scalar_parameters
     if (
         function.decorator_list
         or getattr(function, "type_params", [])
@@ -102,24 +105,35 @@ def _parse(code: str) -> ast.FunctionDef:
         or args.kw_defaults
         or args.vararg
         or args.kwarg
-        or len(args.args) != 1
-        or args.args[0].arg != "values"
+        or tuple(arg.arg for arg in args.args) != parameters
     ):
-        raise SandboxFailure("solve must take exactly one values argument")
+        raise SandboxFailure("unexpected function signature")
     # Annotations are syntax only; they are never evaluated.
     if function.returns is not None and not (
         isinstance(function.returns, ast.Name) and function.returns.id == "int"
     ):
         raise SandboxFailure("unsupported return annotation")
-    annotation = args.args[0].annotation
-    if annotation is not None and not (
-        isinstance(annotation, ast.Subscript)
-        and isinstance(annotation.value, ast.Name)
-        and annotation.value.id == "list"
-        and isinstance(annotation.slice, ast.Name)
-        and annotation.slice.id == "int"
-    ):
-        raise SandboxFailure("unsupported input annotation")
+    if scalar_parameters is None:
+        annotation = args.args[0].annotation
+        if annotation is not None and not (
+            isinstance(annotation, ast.Subscript)
+            and isinstance(annotation.value, ast.Name)
+            and annotation.value.id == "list"
+            and isinstance(annotation.slice, ast.Name)
+            and annotation.slice.id == "int"
+        ):
+            raise SandboxFailure("unsupported input annotation")
+    else:
+        if not 1 <= len(parameters) <= 8:
+            raise SandboxFailure("expected one to eight integer parameters")
+        for arg in args.args:
+            _name(ast.Name(id=arg.arg), target=True)
+            if arg.annotation is not None and not (
+                isinstance(arg.annotation, ast.Name) and arg.annotation.id == "int"
+            ):
+                raise SandboxFailure("unsupported integer parameter annotation")
+        if any(isinstance(node, (ast.Call, ast.For, ast.BoolOp)) for node in ast.walk(function)):
+            raise SandboxFailure("calls, loops and boolean operators are unsupported in repair")
     if (
         function.body
         and isinstance(function.body[0], ast.Expr)
@@ -137,8 +151,8 @@ class _Returned(Exception):
 
 
 class _Machine:
-    def __init__(self, values: list[int], max_steps: int):
-        self.env = {"values": tuple(values)}
+    def __init__(self, env: dict, max_steps: int):
+        self.env = env
         self.remaining = max_steps
 
     def step(self):
@@ -270,6 +284,32 @@ class _Machine:
                     self.statements(node.body)
 
 
+def _execute(function: ast.FunctionDef, env: dict, max_steps: int) -> SandboxResult:
+    machine = _Machine(env, max_steps)
+    try:
+        machine.statements(function.body)
+    except _Returned as result:
+        return SandboxResult(machine.integer(result.value))
+    except (ZeroDivisionError, RecursionError) as exc:
+        raise SandboxFailure("invalid algorithm arithmetic") from exc
+    raise SandboxFailure("algorithm did not return an integer")
+
+
+class BoundedIntegerFunction:
+    """A parsed, positional integer function for project repair."""
+
+    def __init__(self, code: str, name: str, parameters: tuple[str, ...]):
+        self._function = _parse(code, name=name, scalar_parameters=parameters)
+        self._parameters = parameters
+
+    def run(self, values: tuple[int, ...]) -> SandboxResult:
+        if len(values) != len(self._parameters) or any(
+            type(value) is not int or abs(value) > 10**9 for value in values
+        ):
+            raise SandboxFailure("invalid integer arguments")
+        return _execute(self._function, dict(zip(self._parameters, values, strict=True)), 20_000)
+
+
 class BoundedRunner:
     runtime = "bounded-integer-v1"
     synthesis_instructions = (
@@ -299,12 +339,4 @@ class BoundedRunner:
             or any(type(x) is not int or abs(x) > 10**9 for x in values)
         ):
             raise SandboxFailure("invalid bounded input")
-        function = _parse(code)
-        machine = _Machine(values, self.max_steps)
-        try:
-            machine.statements(function.body)
-        except _Returned as result:
-            return SandboxResult(machine.integer(result.value))
-        except (ZeroDivisionError, RecursionError) as exc:
-            raise SandboxFailure("invalid algorithm arithmetic") from exc
-        raise SandboxFailure("algorithm did not return an integer")
+        return _execute(_parse(code), {"values": tuple(values)}, self.max_steps)

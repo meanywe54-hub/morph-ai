@@ -27,6 +27,19 @@ def main() -> None:
     local.add_argument(
         "--answer-schema", action="store_true", help="predefined structured-output control"
     )
+    repair = sub.add_parser("repair", help="verify one local model patch to a Python function")
+    repair.add_argument("--project", type=Path, default=Path("."))
+    repair.add_argument("--source", required=True, help="relative .py path within the project")
+    repair.add_argument("--function", required=True)
+    repair.add_argument("--description", default="", help="expected behavior for the local model")
+    repair.add_argument("--model", required=True, help="installed local Ollama model")
+    repair.add_argument("--attempts", type=int, choices=(1, 2), default=2)
+    repair.add_argument("--development", type=Path, required=True)
+    repair.add_argument("--validation", type=Path, required=True)
+    repair.add_argument("--holdout", type=Path)
+    repair.add_argument("--ledger", type=Path)
+    repair.add_argument("--report", type=Path, required=True)
+    repair.add_argument("--patch", type=Path, required=True)
     live = sub.add_parser(
         "synthesize", help="call an LLM and evaluate a candidate (may cost money)"
     )
@@ -73,6 +86,15 @@ def main() -> None:
     holdout.add_argument("--agent-input-per-million", type=float)
     holdout.add_argument("--agent-output-per-million", type=float)
     args = parser.parse_args()
+    if args.command == "repair":
+        from morph.repair import run_local_repair
+
+        try:
+            result = run_local_repair(args)
+        except (ImportError, OSError, ValueError, SandboxFailure, sqlite3.Error) as exc:
+            parser.exit(2, f"morph repair: {exc}\n")
+        print(json.dumps({"status": result["status"], "patch_written": "patch" in result}))
+        return
     if args.command == "local-baseline":
         from morph.local_baseline import run_ollama
 

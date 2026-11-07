@@ -22,6 +22,7 @@ python -m venv .venv
 - [Архитектура](architecture.md)
 - [Оценка, реестр, откат и holdout](evaluation.md)
 - [Ограниченный исполнитель](bounded-runtime.md)
+- [Ремонт Python-функций локальной моделью](python-repair.md)
 - [Воспроизведение эксперимента с Ollama](real-model-experiment.md)
 - [Данные и приватность](privacy.md)
 - [Ограничения безопасности](../SECURITY.md)

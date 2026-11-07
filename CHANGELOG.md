@@ -9,3 +9,4 @@
 - Added local-only baseline measurements with source and data fingerprints, raw completion records, reproducible sampling options, and predefined response-schema controls.
 - Added a bounded integer-language interpreter, explicit patch runtime identity, and evaluation against frozen local baseline observations without Docker.
 - Added code-only local synthesis and a single-use holdout with fresh baseline calls. Documented one successful generated function on synthetic signed-addition tasks.
+- Added a local Python repair command that verifies a bounded replacement function and exports a Git patch for review. Added a reproducible four-project benchmark against the original code.

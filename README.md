@@ -4,9 +4,9 @@
 
 MORPH is an experimental Python framework for studying improvement around a fixed language model: agent adapters, development-only patch synthesis, bounded execution, paired evaluation, review, routing, rollback, and single-use holdout records.
 
-**Status: experimental preview.** An installed local model generated a signed-addition function that passed 40 validation and 24 holdout tasks in the bounded interpreter. The current evidence covers one synthetic task family.
+**Status: experimental preview.** MORPH can propose and verify patches for bounded integer functions in Python projects using an installed local model. It also includes the original arithmetic evolution and registry workflows.
 
-[Install](docs/installation.md) · [Walkthrough](docs/walkthrough.md) · [Architecture](docs/architecture.md) · [Measured results](reports/README.md) · [Privacy](docs/privacy.md) · [Research](RESEARCH.md) · [Русский](docs/README.ru.md)
+[Install](docs/installation.md) · [Python repair](docs/python-repair.md) · [Walkthrough](docs/walkthrough.md) · [Architecture](docs/architecture.md) · [Measured results](reports/README.md) · [Privacy](docs/privacy.md) · [Research](RESEARCH.md) · [Русский](docs/README.ru.md)
 
 ## Why MORPH exists
 
@@ -57,8 +57,9 @@ Run `examples/bounded_evolution.py` with the same environment's Python for an of
 | Router | Active-patch recommendations using matching category evidence and optional historical budgets |
 | Holdout | Reservation before evaluation; reused IDs or previously consumed inputs refused in the same registry |
 | Local experiments | Ollama loopback baseline and code generation, bounded validation, optional single-use holdout |
+| Python repair | Generate an unapplied Git patch for one integer function, checked against separate cases |
 
-Diagnosis remains a simple heuristic. A candidate replaces arithmetic execution; it does not yet teach an arbitrary LLM agent how to use a new tool.
+Diagnosis remains a simple heuristic. Project repair validates a selected function in isolation. [Supported Python and reproducible commands](docs/python-repair.md)
 
 ## Lifecycle
 

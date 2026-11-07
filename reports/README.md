@@ -41,6 +41,26 @@ The 24 holdout inputs were generated before synthesis using seed 17041, lengths 
 
 The code-only format was designed after earlier failed synthesis attempts, and validation reused the prior schema-control result. Holdout gives a fresh same-task comparison, with a small synthetic sample and a surprisingly weak direct-model baseline. The candidate implements the stated arithmetic operation, which a prewritten sum can also solve. This experiment measures whether MORPH can generate and verify one executable replacement. Broader task transfer, autonomous discovery and matched-budget superiority remain untested.
 
+## Local Python project repair
+
+MORPH received one faulty function at a time from small synthetic Python projects. Each project had a separate development, validation and holdout split. The baseline was the original function executed under the same interpreter on the same inputs. Each prompt included the intended behavior and only failed development examples. Validation and holdout were never sent to the model. The tests compare repairs with the original code and do not benchmark competing repair agents.
+
+The initial single-attempt run exported patches for metering and billing. Warehouse and settlement failed development and yielded no patch. The two exported patches scored 48/48 on validation against 30/48 for the original functions, and 48/48 on holdout against 30/48. Both diffs applied to scratch copies. The failed projects' original functions scored 9/24 and 5/24 on validation. No candidate validation or holdout score was recorded for those two projects.
+
+After the initial run, MORPH gained an optional second attempt using only development feedback. Four new synthetic projects and their case files were frozen before the follow-up run. All four yielded a patch on the first attempt, so these measurements do not estimate the benefit of the retry.
+
+| Project | Original validation | Patched validation | Original holdout | Patched holdout |
+|---|---:|---:|---:|---:|
+| Inventory rounding | 1/24 | 24/24 | 7/24 | 24/24 |
+| Payroll overtime | 12/24 | 24/24 | 12/24 | 24/24 |
+| Shipping threshold | 16/24 | 24/24 | 18/24 | 24/24 |
+| Signed accounting change | 0/24 | 24/24 | 0/24 | 24/24 |
+| **Total** | **29/96** | **96/96** | **37/96** | **96/96** |
+
+All four follow-up diffs applied to separate project copies. Each applied function passed the same 51 development, validation and holdout cases in CPython, for 204 native checks. Validation and holdout found zero regressions. The four synthesis requests took 30.88 seconds in total, including model load, with 713 input and 129 output tokens. Execution after synthesis made no model calls.
+
+Both runs used local `qwen3:4b`, digest `359d7dd4bcdab3d86b87d73ac27966f4dbb9f5efdfcc75d34a8764a09474fae7`, on Ollama 0.32.6, with thinking disabled, temperature 0, seed 0 and a 320-token response limit. The input manifests were hashed before generation. The four-project results are measurements of narrow, explicitly described integer bugs. They provide no estimate for arbitrary Python projects, dependency failures, multiple-file bugs or repository-scale repair. [Reproduction commands and supported syntax](../docs/python-repair.md)
+
 ## Reproduction and evidence limits
 
 The [experiment protocol](../docs/real-model-experiment.md) documents the commands, task generator, output contracts, sampling settings and stopping rules. The release includes the implementation and aggregate observations; raw local logs are not distributed. Independent replay is therefore required to audit the aggregates from public materials. Source snapshots were not archived for the first run, and fixed seed/temperature do not ensure bitwise replay across runtimes and hardware.

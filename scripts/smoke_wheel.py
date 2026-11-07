@@ -34,6 +34,15 @@ def main() -> None:
             check=True,
             capture_output=True,
         )
+        help_result = subprocess.run(
+            [str(executable), "-I", "-m", "morph.cli", "repair", "--help"],
+            cwd=root,
+            env=env,
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+        assert "--holdout" in help_result.stdout and "--patch" in help_result.stdout
         for command in ("demo", "benchmark"):
             run = subprocess.run(
                 [str(executable), "-I", "-m", "morph.cli", command],
