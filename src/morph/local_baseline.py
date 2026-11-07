@@ -15,6 +15,13 @@ from morph.demo import synthesis_tasks
 from morph.experiment import evaluate
 from morph.patches import TextModel
 
+INTEGER_ANSWER_SCHEMA = {
+    "type": "object",
+    "properties": {"answer": {"type": "integer"}},
+    "required": ["answer"],
+    "additionalProperties": False,
+}
+
 
 def _write(path: Path, report: dict) -> None:
     with tempfile.NamedTemporaryFile(
@@ -108,13 +115,27 @@ def measure(
     return report
 
 
+def ollama_answer_model(client, model_name: str, seed: int, max_tokens: int, answer_schema: bool):
+    from morph.providers import OpenAICompatibleModel
+
+    return OpenAICompatibleModel(
+        client,
+        model_name,
+        input_per_million=0,
+        output_per_million=0,
+        temperature=0,
+        seed=seed,
+        max_tokens=max_tokens,
+        json_mode=not answer_schema,
+        response_schema=INTEGER_ANSWER_SCHEMA if answer_schema else None,
+    )
+
+
 def run_ollama(
     model_name: str, output: Path, seed: int = 0, max_tokens: int = 256, answer_schema: bool = False
 ) -> dict:
     import httpx
     from openai import OpenAI
-
-    from morph.providers import OpenAICompatibleModel
 
     if output.exists():
         raise FileExistsError(output)
@@ -137,27 +158,7 @@ def run_ollama(
             max_retries=0,
             http_client=transport,
         ) as client:
-            schema = (
-                {
-                    "type": "object",
-                    "properties": {"answer": {"type": "integer"}},
-                    "required": ["answer"],
-                    "additionalProperties": False,
-                }
-                if answer_schema
-                else None
-            )
-            model = OpenAICompatibleModel(
-                client,
-                model_name,
-                input_per_million=0,
-                output_per_million=0,
-                temperature=0,
-                seed=seed,
-                max_tokens=max_tokens,
-                json_mode=not answer_schema,
-                response_schema=schema,
-            )
+            model = ollama_answer_model(client, model_name, seed, max_tokens, answer_schema)
             report = measure(
                 model,
                 {
@@ -168,7 +169,7 @@ def run_ollama(
                     "temperature": 0,
                     "max_tokens": max_tokens,
                     "json_mode": not answer_schema,
-                    "response_schema": schema,
+                    "response_schema": INTEGER_ANSWER_SCHEMA if answer_schema else None,
                     "endpoint": "http://127.0.0.1:11434/v1/",
                     "retries": 0,
                 },

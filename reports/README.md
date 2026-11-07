@@ -22,9 +22,24 @@ One fixed local Ollama 0.32.6 run used the already installed `qwen2.5-coder:7b`,
 
 The schema control eliminated output-contract errors in that run but left arithmetic failures. It was tried after inspecting development failures and the first aggregate validation outcome, so this is exploratory validation reuse, not an independent final test. One small run cannot characterize the model or establish a cause for the unexpectedly poor accuracy. Inference timing depends on the machine and includes no matched-cost comparison to generated tools.
 
-Two local synthesis attempts used only the development failures. One returned invalid Python; another, using an installed `qwen3:4b` on CPU, exhausted a 1024-token output limit before completing valid JSON. Both were rejected before algorithm execution. No model-generated candidate was accepted or activated, and no final holdout was accessed.
+Two earlier local synthesis attempts used only the development failures. One returned invalid Python. The other, using an installed `qwen3:4b` on CPU, reached a 1024-token output limit before completing valid JSON. Both were rejected before algorithm execution.
 
 The schema-control run reported GPU placement. A separate single-example native CPU diagnostic still violated the output contract; its API and runner settings differed, so it does not isolate the cause. Local API charges were zero; energy and hardware costs were not measured. Docker integration was not run for these measurements.
+
+## Local model generated a working signed-addition function
+
+One code-only synthesis request to the installed `qwen3:4b` produced a loop that adds each signed integer to an accumulator. MORPH asked for the signed sum, supplied only failed development evidence, parsed the returned function and interpreted it with `bounded-integer-v1`. The candidate was eligible for review and evaluated unchanged on a separate holdout. Its status remains experimental and it was never activated.
+
+| Split | Direct model correct | Generated function correct | Improvements | Regressions | Execution errors |
+|---|---:|---:|---:|---:|---:|
+| Validation (recorded schema-control baseline) | 1/40 | 40/40 | 39 | 0 | 0 |
+| Holdout (fresh baseline, same model digest and answer schema) | 0/24 | 24/24 | 24 | 0 | 0 |
+
+The generator used Ollama 0.32.6, model digest `359d7dd4bcdab3d86b87d73ac27966f4dbb9f5efdfcc75d34a8764a09474fae7`, CPU, a 4096-token context, thinking disabled, temperature 0, seed 0 and a 256-token output limit. The one request took 13.93 seconds including load and returned 40 output tokens from 221 input tokens. After synthesis, the candidate made zero model calls. The 24 direct holdout calls took 21.74 seconds in total, and the 24 interpreter executions took about 1.8 milliseconds. The timing sums exclude test harness overhead and reflect different execution mechanisms. Synthesis time is separate. All inference was local and hardware and energy costs were unpriced.
+
+The 24 holdout inputs were generated before synthesis using seed 17041, lengths 3–8 and integer values from −900 to 900. MORPH checked exact input separation and reserved the split in a fresh SQLite ledger before evaluation. The canonical task digest was `2bf4a758ee929c7d32842750b235bbcfa49459554ebe83a07b84436ab274d679`. The holdout was evaluated once.
+
+The code-only format was designed after earlier failed synthesis attempts, and validation reused the prior schema-control result. Holdout gives a fresh same-task comparison, with a small synthetic sample and a surprisingly weak direct-model baseline. The candidate implements the stated arithmetic operation, which a prewritten sum can also solve. This experiment measures whether MORPH can generate and verify one executable replacement. Broader task transfer, autonomous discovery and matched-budget superiority remain untested.
 
 ## Reproduction and evidence limits
 

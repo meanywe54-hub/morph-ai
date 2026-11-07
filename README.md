@@ -4,7 +4,7 @@
 
 MORPH is an experimental Python framework for studying improvement around a fixed language model: agent adapters, development-only patch synthesis, bounded execution, paired evaluation, review, routing, rollback, and single-use holdout records.
 
-**Status: experimental preview.** The current task contract is signed-integer arithmetic. Offline tests exercise the infrastructure, but real local-model attempts have not produced an accepted improvement. MORPH does not claim general self-improvement, cross-domain transfer, or production isolation.
+**Status: experimental preview.** An installed local model generated a signed-addition function that passed 40 validation and 24 holdout tasks in the bounded interpreter. The current evidence covers one synthetic task family.
 
 [Install](docs/installation.md) · [Walkthrough](docs/walkthrough.md) · [Architecture](docs/architecture.md) · [Measured results](reports/README.md) · [Privacy](docs/privacy.md) · [Research](RESEARCH.md) · [Русский](docs/README.ru.md)
 
@@ -56,7 +56,7 @@ Run `examples/bounded_evolution.py` with the same environment's Python for an of
 | Registry | SQLite reports, immutable patch records, review events and version metadata |
 | Router | Active-patch recommendations using matching category evidence and optional historical budgets |
 | Holdout | Reservation before evaluation; reused IDs or previously consumed inputs refused in the same registry |
-| Local experiments | Ollama loopback measurement with explicit parameters; no model download or generated-code execution |
+| Local experiments | Ollama loopback baseline and code generation, bounded validation, optional single-use holdout |
 
 Diagnosis remains a simple heuristic. A candidate replaces arithmetic execution; it does not yet teach an arbitrary LLM agent how to use a new tool.
 
@@ -88,7 +88,7 @@ Offline examples do not contact providers. Remote synthesis sends supplied task 
 
 ## Real measurements
 
-One fixed local `qwen2.5-coder:7b` run scored **0/40** with JSON-object output mode. A predefined required-answer schema scored **1/40**. Local synthesis attempts were rejected before algorithm execution for invalid Python or incomplete JSON. These are negative exploratory observations, not proof of a model's general capability. No accepted improvement or final-holdout transfer result was obtained.
+Local `qwen3:4b` produced one executable signed-addition function after two earlier synthesis attempts failed. It solved **40/40** validation tasks against a recorded **1/40** direct-model baseline. On a separate 24-task holdout the function solved **24/24**, while fresh direct calls to `qwen2.5-coder:7b` solved **0/24**. The patch was evaluated in isolation and left inactive. The experiment tests a narrow arithmetic workflow with an unusually weak baseline.
 
 See [results and methodology](reports/README.md) for sample sizes, controls, timing and reproducibility limits. Raw local logs are excluded from the public release.
 

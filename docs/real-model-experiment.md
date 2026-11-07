@@ -1,6 +1,6 @@
-# Proposed real-model experiment
+# Real-model experiments
 
-The full model-generated-code experiment has **not run**. Local baseline measurements are available under [reports/](../reports/); these do not establish agent improvement or transfer.
+A local Ollama experiment generated a signed-addition function and evaluated it in the bounded interpreter on validation and a separate holdout. The [results](../reports/README.md) document the scores, earlier failed attempts and scope of the experiment.
 
 The current implementation evaluates signed-integer addition only. The model-backed baseline is asked for one JSON answer per task. A synthesis model receives only development failures and proposes a `solve(values)` function. The candidate replaces the baseline calculation in the selected bounded or Docker runtime; it is not a tool used by the language-model agent. Comparing their scores therefore compares different mechanisms and execution budgets.
 
@@ -29,4 +29,40 @@ morph local-baseline --model qwen2.5-coder:7b --output schema-control.json --see
 
 These commands require an already running local server and a model already on disk. They do not start the server or download weights. Sampling settings are recorded, but runtime and hardware still affect repeatability. The output file is written incrementally and is not overwritten by a new run. The schema control is a predefined intervention, not autonomous executable-tool creation. No holdout is consumed, and no generated code is executed.
 
-`examples/propose_local_patch.py` can send only development observations from a completed baseline to the local model and save a generated candidate. Its JSON-schema response contract does not guarantee valid Python or useful behavior. Invalid Python is rejected by the existing synthesizer. A valid candidate remains pending isolated evaluation until suitable infrastructure is available.
+### Reproduce bounded synthesis and holdout
+
+Install the project with `python -m pip install -e '.[openai]'` in a virtual environment. This reproduction uses an existing Ollama server bound to `127.0.0.1:11434` with `qwen3:4b` and `qwen2.5-coder:7b` already on disk. Use a local-only server for this run. These commands use loopback HTTP and generate synthetic arithmetic data. [Ollama on Windows](https://docs.ollama.com/windows) · [Ollama chat API](https://docs.ollama.com/api/chat)
+
+Create `local-results/` and record the strict-schema baseline:
+
+```sh
+python -m morph.cli local-baseline --model qwen2.5-coder:7b --output local-results/schema-control.json --seed 0 --max-tokens 256 --answer-schema
+```
+
+Save and run this Python snippet to generate the holdout before requesting the patch:
+
+```python
+import json
+from pathlib import Path
+from random import Random
+
+rng = Random(17041)
+rows = []
+for i in range(24):
+    values = [rng.randint(-900, 900) for _ in range(3 + i % 6)]
+    rows.append(
+        dict(id=f"local-holdout-{i + 1:02}", category="signed", values=values, expected=sum(values))
+    )
+with Path("local-results/holdout-17041.json").open("x", encoding="utf-8") as stream:
+    json.dump(rows, stream, indent=2)
+```
+
+Then make one synthesis attempt and let the validation gate decide whether to evaluate the holdout:
+
+```sh
+python examples/evolve_recorded_local.py --model qwen3:4b --code-only --baseline local-results/schema-control.json --holdout local-results/holdout-17041.json --ledger local-results/holdout-evolution.db --output local-results/bounded-code-only.json
+```
+
+`--code-only` requests a JSON object with a single code field. MORPH supplies a generic hypothesis label for the record. The example validates the patch syntax and interpreter contract, compares it with the recorded validation runs, and writes the validation report before any holdout evaluation. Holdout requires `eligible_for_review`, checks the recorded baseline model digest and Ollama version, and uses the same strict answer schema for fresh baseline calls. SQLite reserves the inputs before those calls. Use this ledger once per holdout and keep the output and database local. A rerun can produce different scores. Keep the candidate fixed after holdout access and report any failed attempts.
+
+This example measures a candidate in isolation and does not register or activate it. The separate review and activation workflow is described in the [walkthrough](walkthrough.md).

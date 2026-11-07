@@ -2,7 +2,9 @@ import json
 
 import pytest
 
+from morph.bounded import BoundedRunner
 from morph.demo import MockAgent, tasks
+from morph.evolution import PatchedAgent
 from morph.experiment import evaluate
 from morph.patches import synthesize
 
@@ -42,3 +44,21 @@ def test_synthesis_rejects_invalid_python():
     model = RecordingModel(json.dumps({"hypothesis": "h", "code": "def solve(:"}))
     with pytest.raises(ValueError, match="syntax"):
         synthesize(model, evaluate(MockAgent(), dev), "agent-v1")
+
+
+def test_code_only_synthesis_produces_a_bounded_candidate():
+    dev, validation = tasks()
+    model = RecordingModel(json.dumps({"code": "def solve(values):\n    return sum(values)"}))
+    runner = BoundedRunner()
+    patch = synthesize(
+        model, evaluate(MockAgent(), dev), "agent-v1", runtime=runner.runtime, code_only=True
+    )
+    assert "only the key code" in model.prompt
+    assert all(row.passed for row in evaluate(PatchedAgent(patch, runner), validation))
+
+
+def test_code_only_synthesis_rejects_other_response_fields():
+    dev, _ = tasks()
+    model = RecordingModel(json.dumps({"code": "def solve(values):\n    return 0", "extra": "x"}))
+    with pytest.raises(ValueError, match="response"):
+        synthesize(model, evaluate(MockAgent(), dev), "agent-v1", code_only=True)

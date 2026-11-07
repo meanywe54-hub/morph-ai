@@ -8,3 +8,4 @@
 - Added a model-backed arithmetic agent, holdout CLI, per-input holdout reuse checks, and opt-in Docker integration tests.
 - Added local-only baseline measurements with source and data fingerprints, raw completion records, reproducible sampling options, and predefined response-schema controls.
 - Added a bounded integer-language interpreter, explicit patch runtime identity, and evaluation against frozen local baseline observations without Docker.
+- Added code-only local synthesis and a single-use holdout with fresh baseline calls. Documented one successful generated function on synthetic signed-addition tasks.
